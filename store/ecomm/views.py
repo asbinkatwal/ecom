@@ -11,6 +11,7 @@ def product_list(request):
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data)
     
+    
     elif request.method == 'POST':
         serializer = ProductSerializer(data=request.data)
         if serializer.is_valid():
