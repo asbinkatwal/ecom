@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'ecomm',
+    'drf_api_logger',
 ]
 
 MIDDLEWARE = [
@@ -51,7 +52,13 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    'drf_api_logger.middleware.api_logger_middleware.APILoggerMiddleware',
 ]
+DRF_API_LOGGER_DATABASE = True 
+DRF_API_LOGGER_SIGNAL = True 
+DRF_API_LOGGER_PATH_TYPE = 'FULL_PATH'
+# Possible values are ABSOLUTE, FULL_PATH or RAW_URI
 
 ROOT_URLCONF = 'store.urls'
 
