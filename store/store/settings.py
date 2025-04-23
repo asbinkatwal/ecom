@@ -130,3 +130,17 @@ MEDIA_ROOT= BASE_DIR/ 'media'
 
 
 # DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10 MB
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),  # Example: Set to 7 days
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),  # Example: Set to 30 days
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+}

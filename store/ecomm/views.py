@@ -1,9 +1,14 @@
 from rest_framework.decorators import api_view , permission_classes
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAdminUser
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from .models import Product, CartItem
-from .serializers import ProductSerializer , CartSerializer
+from .serializers import ProductSerializer , CartSerializer , UserCreateSerializer,UserSerializer
+from rest_framework.authtoken.models import Token
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
 
 @api_view(['GET', 'POST'])
 def product_list(request):
@@ -93,3 +98,67 @@ def cart_detail(request, pk):
     elif request.method == 'DELETE':
         cart_item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAdminUser])
+def user_list_create(request):
+    if request.method == 'GET':
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = UserCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAdminUser])
+def user_detail(request, pk):
+    try:
+        user = User.objects.get(pk=pk)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = UserSerializer(user, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+@api_view(['POST'])
+def login_view(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+
+    if username is None or password is None:
+        return Response({'error': 'Username and password required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Authenticate user
+    user = authenticate(username=username, password=password)
+    if user is None:
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Create JWT tokens (access and refresh)
+    refresh = RefreshToken.for_user(user)
+    access_token = str(refresh.access_token)
+    refresh_token = str(refresh)
+
+    return Response({
+        'refresh': refresh_token,
+        'access': access_token
+    }, status=status.HTTP_200_OK)
