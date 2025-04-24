@@ -9,8 +9,10 @@ from .serializers import ProductSerializer , CartSerializer , UserCreateSerializ
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from .permissions import IsSuperUser , IsAdminOrSuperUser,IsOwnerOrReadOnly
 
 @api_view(['GET', 'POST'])
+
 def product_list(request):
     if request.method == 'GET':
         products = Product.objects.all()
@@ -19,33 +21,43 @@ def product_list(request):
     
     
     elif request.method == 'POST':
-        serializer = ProductSerializer(data=request.data)
-        if serializer.is_valid(): 
+         if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+
+         serializer = ProductSerializer(data=request.data)
+         if serializer.is_valid(): 
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'Product created successfully!', 'product': serializer.data}, status=status.HTTP_201_CREATED)
+         return Response({'message': 'Invalid data provided.', 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    
 
 @api_view(['GET', 'PUT', 'DELETE'])
+
 def product_detail(request, pk):
     try:
         product = Product.objects.get(pk=pk)
     except Product.DoesNotExist:
         return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method in ['PUT', 'DELETE']:
+        if not (request.user.is_staff or request.user.is_superuser):
+            return Response({'error': 'You do not have permission to perform this action'}, status=status.HTTP_403_FORBIDDEN)
 
     if request.method == 'GET':
         serializer = ProductSerializer(product)
         return Response(serializer.data)
     
     elif request.method == 'PUT':
+
         serializer = ProductSerializer(product, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message':'product updated', 'product': serializer.data}, status=status.HTTP_202_ACCEPTED)
+        return Response({'error':'invalid product','error':serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
     elif request.method == 'DELETE':
         product.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({"product deleted successfully! "},status=status.HTTP_204_NO_CONTENT)
     
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
@@ -72,7 +84,7 @@ def cart_list_create(request):
         cart_item.save()
 
         serializer = CartSerializer(cart_item)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response({'message':'added product','cart_item':serializer.data}, status=status.HTTP_201_CREATED)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -93,11 +105,11 @@ def cart_detail(request, pk):
         cart_item.quantity = int(quantity)
         cart_item.save()
         serializer = CartSerializer(cart_item)
-        return Response(serializer.data)
+        return Response({'message':'cart is updated'},serializer.data)
 
     elif request.method == 'DELETE':
         cart_item.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({"cart deleted successfully! "},status=status.HTTP_204_NO_CONTENT)
     
 
 
@@ -109,7 +121,7 @@ from django.contrib.sites.shortcuts import get_current_site
 from rest_framework.views import APIView
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAdminOrSuperUser])
 def user_list_create(request):
     if request.method == 'GET':
         users = User.objects.all()
@@ -136,7 +148,7 @@ def user_list_create(request):
 
             {activation_link}
             """
-            send_mail(subject, message, 'your@email.com', [user.email])
+            send_mail(subject, message, 'mail@gmail.com', [user.email])
 
             return Response({"message": "User registered successfully. Please check your email for activation."}, status=status.HTTP_201_CREATED)
 
@@ -158,7 +170,7 @@ class ActivateAccountAPIView(APIView):
             return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAdminOrSuperUser])
 def user_detail(request, pk):
     try:
         user = User.objects.get(pk=pk)
@@ -173,12 +185,12 @@ def user_detail(request, pk):
         serializer = UserSerializer(user, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'User details updated successfully!', 'data': serializer.data})
+        return Response({'error': 'Invalid data provided', 'details':serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({'message': 'User deleted successfully!'},status=status.HTTP_204_NO_CONTENT)
     
 @api_view(['POST'])
 def login_view(request):
@@ -204,3 +216,22 @@ def login_view(request):
         'access': access_token
     }, status=status.HTTP_200_OK)
 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsSuperUser])  # Only superuser can promote
+def promote_view(request):
+    # Get user ID and roles from request data
+    user_id = request.data.get('user_id')  # Request data from DRF
+    make_admin = request.data.get('is_staff', False)
+    make_superuser = request.data.get('is_superuser', False)
+
+    try:
+        # Fetch user by ID
+        user = User.objects.get(id=user_id)
+        # Update user roles
+        user.is_staff = make_admin
+        user.is_superuser = make_superuser
+        user.save()
+        return Response({'message': f"User {user.username} updated successfully!"})
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
