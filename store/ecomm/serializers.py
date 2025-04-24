@@ -32,4 +32,4 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user.is_active = False  # Disable account until confirmed
         user.save()
         return user
-        return user
+        

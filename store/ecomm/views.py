@@ -121,9 +121,13 @@ from django.contrib.sites.shortcuts import get_current_site
 from rest_framework.views import APIView
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdminOrSuperUser])
+
 def user_list_create(request):
     if request.method == 'GET':
+        if not request.user.is_staff and not request.user.is_superuser:
+            return Response({'error': 'Only admin or superuser can access this '}, status=status.HTTP_403_FORBIDDEN)
+        
+
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
