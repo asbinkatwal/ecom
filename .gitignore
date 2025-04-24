@@ -5,7 +5,8 @@ __pycache__/
 
 # C extensions
 *.so
-
+# Ignore entire media folder
+/media/Produt_image
 # Distribution / packaging
 .Python
 build/
