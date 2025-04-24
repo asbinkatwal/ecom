@@ -11,4 +11,6 @@ urlpatterns = [
     path('users/', views.user_list_create, name='user-list-create'),
     path('users/<int:pk>/', views.user_detail, name='user-detail'),
     path('login/', views.login_view, name='login_view'),
+    path('api/activate/<uidb64>/<token>/', views.ActivateAccountAPIView.as_view(), name='activate-account'),
+
 ] + static(settings.MEDIA_URL , document_root=settings.MEDIA_ROOT)

@@ -151,3 +151,16 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
 }
+
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False 
+EMAIL_HOST_USER = 'kif22.ak@ismt.edu.np'
+EMAIL_HOST_PASSWORD = 'Katwal1234!'
+DEFAULT_FROM_EMAIL = 'kif22.ak@ismt.edu.np'
+
+

@@ -29,4 +29,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
+        user.is_active = False  # Disable account until confirmed
+        user.save()
+        return user
         return user

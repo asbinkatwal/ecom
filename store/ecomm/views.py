@@ -20,7 +20,7 @@ def product_list(request):
     
     elif request.method == 'POST':
         serializer = ProductSerializer(data=request.data)
-        if serializer.is_valid():
+        if serializer.is_valid(): 
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -101,6 +101,13 @@ def cart_detail(request, pk):
     
 
 
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode ,urlsafe_base64_decode
+from django.utils.encoding import force_bytes
+from django.core.mail import send_mail
+from django.contrib.sites.shortcuts import get_current_site
+from rest_framework.views import APIView
+
 @api_view(['GET', 'POST'])
 @permission_classes([IsAdminUser])
 def user_list_create(request):
@@ -113,9 +120,42 @@ def user_list_create(request):
         serializer = UserCreateSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+            # Generate token and activation link
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            domain = get_current_site(request).domain
+            activation_link = f"http://{domain}/api/activate/{uid}/{token}/"
+
+            # Create the email content dynamically
+            subject = 'Activate your account'
+            message = f"""
+            Hello {user.username},
+
+            Thank you for registering! Please click the link below to activate your account:
+
+            {activation_link}
+            """
+            send_mail(subject, message, 'your@email.com', [user.email])
+
+            return Response({"message": "User registered successfully. Please check your email for activation."}, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class ActivateAccountAPIView(APIView):
+    def get(self, request, uidb64, token):
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, User.DoesNotExist):
+            return Response({"error": "Invalid activation link"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return Response({"message": "Account successfully activated."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAdminUser])
@@ -142,6 +182,7 @@ def user_detail(request, pk):
     
 @api_view(['POST'])
 def login_view(request):
+    
     username = request.data.get('username')
     password = request.data.get('password')
 
@@ -162,3 +203,4 @@ def login_view(request):
         'refresh': refresh_token,
         'access': access_token
     }, status=status.HTTP_200_OK)
+
