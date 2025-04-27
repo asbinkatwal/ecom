@@ -10,14 +10,20 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from .permissions import IsSuperUser , IsAdminOrSuperUser,IsOwnerOrReadOnly
+from .pagination import CustomPageNumberPagination
+
 
 @api_view(['GET', 'POST'])
 
 def product_list(request):
     if request.method == 'GET':
         products = Product.objects.all()
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
+        paginator = CustomPageNumberPagination()
+        result_page = paginator.paginate_queryset(products, request)
+        serializer = ProductSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+            
+        
     
     
     elif request.method == 'POST':
